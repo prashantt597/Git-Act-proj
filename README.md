@@ -1,4 +1,4 @@
-# Killercoda CI/CD & Helm Demo
+## Killercoda CI/CD & Helm Demo
 
 This project demonstrates a full CI/CD pipeline using GitHub Actions and Helm charts, deploying to the Killercoda Kubernetes playground.
 
