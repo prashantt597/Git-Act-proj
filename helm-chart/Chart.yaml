@@ -1,0 +1,4 @@
+apiVersion: v2
+name: killercoda-app
+version: 0.1.0
+description: A Helm chart for backend, frontend & MySQL demo on Killercoda
