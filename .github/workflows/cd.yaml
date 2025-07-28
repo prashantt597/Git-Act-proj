@@ -19,7 +19,8 @@ jobs:
 
       - name: Set AKS context
         run: |
-          az aks get-credentials --resource-group <your-rg> --name <your-aks-name> --overwrite-existing
+          - run: az aks get-credentials --resource-group rg-github --name aks-github --overwrite-existing
+
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
