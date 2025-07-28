@@ -34,3 +34,4 @@ jobs:
           context: ./frontend
           push: true
           tags: ghcr.io/${{ github.repository }}/frontend:latest
+          --set image.tag=latest
