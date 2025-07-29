@@ -74,7 +74,7 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan -out=tfplan
+        run: terraform plan -out=tfplan -lock=false
 
       - name: Terraform Apply
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -83,6 +83,9 @@ jobs:
   deploy:
     needs: terraform
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     defaults:
       run:
         working-directory: helm
@@ -104,9 +107,10 @@ jobs:
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.ARM_CLIENT_ID }}
-          client-secret: ${{ secrets.ARM_CLIENT_SECRET }}
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          auth-type: SERVICE_PRINCIPAL
+          audience: api://AzureADTokenExchange
 
       - name: Get AKS Credentials
         run: az aks get-credentials --resource-group rg-aks-github --name aks-github --overwrite-existing
