@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD
 
 on:
   push:
@@ -44,7 +44,7 @@ jobs:
         with:
           context: ./backend
           push: true
-          tags: ghcr.io/prashantt597/git-act-proj/backend:latest
+          tags: ghcr.io/${{ github.repository }}/backend:latest
 
   build_frontend:
     runs-on: ubuntu-latest
@@ -68,4 +68,31 @@ jobs:
         with:
           context: ./frontend
           push: true
-          tags: ghcr.io/prashantt597/git-act-proj/frontend:latest
+          tags: ghcr.io/${{ github.repository }}/frontend:latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build_backend, build_frontend]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set AKS context
+        run: az aks get-credentials --resource-group rg-github --name aks-github --overwrite-existing
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+
+      - name: Deploy Helm Chart
+        run: |
+          helm upgrade --install myapp ./helm \
+            --set image.repository=ghcr.io/${{ github.repository }}/backend \
+            --set image.tag=latest
