@@ -6,6 +6,13 @@ terraform {
       version = ">=3.50.0"
     }
   }
+  # Optional: Add a remote backend for state management
+  # backend "azurerm" {
+  #   resource_group_name  = "rg-terraform-state"
+  #   storage_account_name = "<your-storage-account>"
+  #   container_name       = "tfstate"
+  #   key                  = "terraform.tfstate"
+  # }
 }
 
 provider "azurerm" {
