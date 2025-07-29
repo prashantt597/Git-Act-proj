@@ -3,7 +3,7 @@ name: CI-CD Pipeline
 on:
   push:
     branches:
-      - main
+      - mai
   pull_request:
 
 jobs:
@@ -102,6 +102,7 @@ jobs:
         uses: azure/setup-helm@v3
         with:
           version: 'latest'
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Azure Login
         uses: azure/login@v2
