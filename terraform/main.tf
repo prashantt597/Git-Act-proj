@@ -6,28 +6,20 @@ terraform {
       version = ">=3.50.0"
     }
   }
-  # Optional: Add a remote backend for state management
-  # backend "azurerm" {
-  #   resource_group_name  = "rg-terraform-state"
-  #   storage_account_name = "<your-storage-account>"
-  #   container_name       = "tfstate"
-  #   key                  = "terraform.tfstate"
-  # }
 }
 
 provider "azurerm" {
   features {}
 }
 
-resource "azurerm_resource_group" "aks_rg" {
-  name     = "rg-aks-github"
-  location = "East US"
+data "azurerm_resource_group" "aks_rg" {
+  name = "rg-aks-github"
 }
 
 resource "azurerm_kubernetes_cluster" "aks" {
   name                = "aks-github"
-  location            = azurerm_resource_group.aks_rg.location
-  resource_group_name = azurerm_resource_group.aks_rg.name
+  location            = data.azurerm_resource_group.aks_rg.location
+  resource_group_name = data.azurerm_resource_group.aks_rg.name
   dns_prefix          = "githubaks"
 
   default_node_pool {
