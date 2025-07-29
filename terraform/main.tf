@@ -1,26 +1,33 @@
+# terraform/main.tf
 provider "azurerm" {
   features {}
-  subscription_id = var.subscription_id
-  client_id       = var.client_id
-  client_secret   = var.client_secret
-  tenant_id       = var.tenant_id
 }
 
-resource "azurerm_resource_group" "rg" {
-  name     = "git-rg"
+terraform {
+  required_version = ">= 1.3.0"
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = ">=3.50.0"
+    }
+  }
+}
+
+resource "azurerm_resource_group" "aks_rg" {
+  name     = "rg-aks-github"
   location = "East US"
 }
 
 resource "azurerm_kubernetes_cluster" "aks" {
-  name                = "git-aks"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  dns_prefix          = "git-aks"
+  name                = "aks-github"
+  location            = azurerm_resource_group.aks_rg.location
+  resource_group_name = azurerm_resource_group.aks_rg.name
+  dns_prefix          = "githubaks"
 
   default_node_pool {
     name       = "default"
-    node_count = 1
-    vm_size    = "Standard_B2s"
+    node_count = 2
+    vm_size    = "Standard_DS2_v2"
   }
 
   identity {
@@ -28,6 +35,11 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 
   tags = {
-    Environment = "GitHub-Actions"
+    environment = "production"
   }
+}
+
+output "kube_config" {
+  value     = azurerm_kubernetes_cluster.aks.kube_config_raw
+  sensitive = true
 }

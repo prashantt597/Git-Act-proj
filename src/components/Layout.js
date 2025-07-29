@@ -9,14 +9,14 @@ function Layout({ children }) {
     <div className="app-layout">
       <header className="app-header slide-down">
         <div className="brand">
-          <img src={logo} alt="DevOps Colony logo" className="logo" />
+          <img src={logo} alt="DevOps Shack logo" className="logo" />
           <div>
-            <h1 className="brand-title">DevOps Colony</h1>
+            <h1 className="brand-title">DevOps Shack</h1>
             <p className="nav-subtitle">User Management</p>
           </div>
         </div>
       </header>
-      <AnimatedBanner message="Welcome to DevOps Colony 🚀" />
+      <AnimatedBanner message="Welcome to DevOps Shack 🚀" />
       <div className="app-body">
         <aside className="sidebar slide-in-left">
           <h3>Connect</h3>
@@ -31,7 +31,7 @@ function Layout({ children }) {
         </main>
       </div>
       <footer className="app-footer">
-        <p>&copy; {new Date().getFullYear()} DevOps Colony. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} DevOps Shack. All rights reserved.</p>
       </footer>
 
       <button className="help-btn" onClick={() => setShowInfo(true)}>?</button>
