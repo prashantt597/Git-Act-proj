@@ -9,9 +9,16 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: terraform  # adjust if your Terraform files are elsewhere
+        working-directory: terraform  # ✅ Ensure your .tf files are inside /terraform
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
