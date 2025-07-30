@@ -44,9 +44,9 @@ jobs:
           scan-type: fs
           scan-ref: .
           format: table
-          exit-code: '0'  # Temporarily allow all severities to pass
+          exit-code: '0'  # Temporary allowance
           ignore-unfixed: true
-          trivyignores: .trivyignore  # Correct input name
+          trivyignores: .trivyignore
 
   build:
     needs: test
@@ -60,6 +60,9 @@ jobs:
         with:
           node-version: 18
 
+      - name: Clear npm cache
+        run: npm cache clean --force
+
       - name: Install Dependencies
         run: npm install
 
@@ -69,7 +72,7 @@ jobs:
       - name: Build and Push Image
         run: |
           npm run build
-          docker build -t prashant0597/myapp:latest .
+          docker build -t prashant0597/myapp:latest .  # Replace *** with prashant0597
           docker push prashant0597/myapp:latest
 
   terraform:
