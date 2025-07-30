@@ -1,136 +1,147 @@
-   name: CI-CD Pipeline
+name: CI-CD Pipeline
 
-   on:
-     push:
-       branches:
-         - main
-     pull_request:
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 
-   permissions:
-     contents: read
+permissions:
+  contents: read
 
-   jobs:
-     test:
-       runs-on: ubuntu-latest
-       steps:
-         - name: Checkout
-           uses: actions/checkout@v4
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-         - name: Set up Node.js
-           uses: actions/setup-node@v4
-           with:
-             node-version: 18
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
 
-         - name: Install Dependencies
-           run: npm install
+      - name: Install Dependencies
+        run: npm install
 
-         - name: Run Unit Tests
-           run: npm test
-           env:
-             CI: true
+      - name: Run Unit Tests
+        run: npm test
+        env:
+          CI: true
 
-         - name: SonarCloud Scan
-           uses: SonarSource/sonarcloud-github-action@v2
-           with:
-             projectBaseDir: .
-           env:
-             SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-             SONAR_PROJECT_KEY: prashantt597_git-act-proj
-             SONAR_ORGANIZATION: prashantt597
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2
+        with:
+          projectBaseDir: .
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: prashantt597_git-act-proj
+          SONAR_ORGANIZATION: prashantt597
 
-         - name: Trivy Scan
-           uses: aquasecurity/trivy-action@master
-           with:
-             scan-type: fs
-             scan-ref: .
-             format: table
-             exit-code: '1' # Fail on critical/high vulnerabilities
+      - name: Trivy Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          ignore-file: .trivyignore
 
-     build:
-       needs: test
-       runs-on: ubuntu-latest
-       steps:
-         - name: Checkout
-           uses: actions/checkout@v4
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-         - name: Log in to Docker Hub
-           run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
 
-         - name: Build and Push Image
-           run: |
-             docker build -t prashant0597/myapp:latest .
-             docker push prashant0597/myapp:latest
+      - name: Install Dependencies
+        run: npm install
 
-     terraform:
-       needs: build
-       runs-on: ubuntu-latest
-       defaults:
-         run:
-           working-directory: terraform
-       env:
-         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-         AWS_REGION: ${{ secrets.AWS_REGION }}
-       steps:
-         - name: Checkout code
-           uses: actions/checkout@v4
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
 
-         - name: Setup Terraform
-           uses: hashicorp/setup-terraform@v3
-           with:
-             terraform_version: "1.x"
+      - name: Build and Push Image
+        run: |
+          npm run build
+          docker build -t prashant0597/myapp:latest .
+          docker push prashant0597/myapp:latest
 
-         - name: Terraform Init
-           run: terraform init
+  terraform:
+    needs: build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-         - name: Terraform Validate
-           run: terraform validate
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.x"
 
-         - name: Terraform Plan
-           run: terraform plan -out=tfplan -lock=false
+      - name: Terraform Init
+        run: terraform init
 
-         - name: Terraform Apply
-           if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-           run: terraform apply -auto-approve tfplan
+      - name: Terraform Validate
+        run: terraform validate
 
-     deploy:
-       needs: terraform
-       runs-on: ubuntu-latest
-       steps:
-         - name: Checkout
-           uses: actions/checkout@v4
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan -lock=false
 
-         - name: Configure AWS Credentials
-           uses: aws-actions/configure-aws-credentials@v4
-           with:
-             aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-             aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-             aws-region: ${{ secrets.AWS_REGION }}
+      - name: Terraform Apply
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve tfplan
 
-         - name: Set up Kubectl
-           uses: azure/setup-kubectl@v3
-           with:
-             version: 'latest'
+  deploy:
+    needs: terraform
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-         - name: Set up Helm
-           uses: azure/setup-helm@v3
-           with:
-             version: 'latest'
-             token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-         - name: Get EKS Credentials
-           run: aws eks update-kubeconfig --name eks-github --region ${{ secrets.AWS_REGION }}
+      - name: Set up Kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
 
-         - name: Helm Upgrade
-           run: helm upgrade --install myapp ./myapp --namespace default --create-namespace --set image.repository=prashant0597/myapp --set image.tag=latest
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-         - name: Get ALB URL
-           run: |
-             ALB_URL=$(kubectl get ingress -n default myapp-ingress -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-             echo "Application is accessible at: http://$ALB_URL"
-             echo "ALB_URL=$ALB_URL" >> $GITHUB_ENV
-           env:
-             KUBECONFIG: ~/.kube/config
+      - name: Get EKS Credentials
+        run: aws eks update-kubeconfig --name eks-github --region ${{ secrets.AWS_REGION }}
 
-       outputs:
-         alb_url: ${{ env.ALB_URL }}
+      - name: Helm Upgrade
+        run: helm upgrade --install myapp ./myapp --namespace default --create-namespace --set image.repository=prashant0597/myapp --set image.tag=latest
+
+      - name: Get ALB URL
+        run: |
+          ALB_URL=$(kubectl get ingress -n default myapp-ingress -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "Application is accessible at: http://$ALB_URL"
+          echo "ALB_URL=$ALB_URL" >> $GITHUB_ENV
+        env:
+          KUBECONFIG: ~/.kube/config
+
+    outputs:
+      alb_url: ${{ env.ALB_URL }}

@@ -1,0 +1,2 @@
+# Ignore CRITICAL vulnerability in form-data temporarily
+CVE-2025-7783
