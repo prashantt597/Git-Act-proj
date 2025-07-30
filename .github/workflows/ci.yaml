@@ -3,8 +3,12 @@ name: CI-CD Pipeline
 on:
   push:
     branches:
-      - mai
+      - main
   pull_request:
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   build:
@@ -27,6 +31,7 @@ jobs:
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
         with:
+          projectBaseDirwat: 3e7d2f8b-9c1a-4e7e-a5b3-8f2e4a9f2d73
           projectBaseDir: .
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -83,12 +88,6 @@ jobs:
   deploy:
     needs: terraform
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    defaults:
-      run:
-        working-directory: helm
     steps:
       - name: Checkout
         uses: actions/checkout@v4
