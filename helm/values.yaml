@@ -1,10 +1,22 @@
-image:
-  repository: prashant0597/myapp
-  tag: latest
-  pullPolicy: IfNotPresent
+   replicaCount: 2
 
-service:
-  type: LoadBalancer
-  port: 80
+   image:
+     repository: prashant0597/myapp
+     tag: latest
+     pullPolicy: Always
 
-replicaCount: 2
+   service:
+     type: ClusterIP
+     port: 80
+
+   ingress:
+     enabled: true
+     annotations:
+       kubernetes.io/ingress.class: alb
+       alb.ingress.kubernetes.io/scheme: internet-facing
+       alb.ingress.kubernetes.io/target-type: ip
+     hosts:
+       - host: myapp.prashant597.com
+         paths:
+           - path: /
+             pathType: Prefix

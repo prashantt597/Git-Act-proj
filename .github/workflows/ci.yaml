@@ -1,117 +1,136 @@
-name: CI-CD Pipeline
+   name: CI-CD Pipeline
 
-on:
-  push:
-    branches:
-      - main
-  pull_request:
+   on:
+     push:
+       branches:
+         - main
+     pull_request:
 
-permissions:
-  contents: read
+   permissions:
+     contents: read
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+   jobs:
+     test:
+       runs-on: ubuntu-latest
+       steps:
+         - name: Checkout
+           uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
+         - name: Set up Node.js
+           uses: actions/setup-node@v4
+           with:
+             node-version: 18
 
-      - name: Install Dependencies
-        run: npm install
+         - name: Install Dependencies
+           run: npm install
 
-      - name: Run Unit Tests
-        run: npm test
+         - name: Run Unit Tests
+           run: npm test
+           env:
+             CI: true
 
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@v2
-        with:
-          projectBaseDir: .
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_PROJECT_KEY: prashantt597_git-act-proj
-          SONAR_ORGANIZATION: prashantt597
+         - name: SonarCloud Scan
+           uses: SonarSource/sonarcloud-github-action@v2
+           with:
+             projectBaseDir: .
+           env:
+             SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+             SONAR_PROJECT_KEY: prashantt597_git-act-proj
+             SONAR_ORGANIZATION: prashantt597
 
-      - name: Trivy Scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: fs
-          scan-ref: .
+         - name: Trivy Scan
+           uses: aquasecurity/trivy-action@master
+           with:
+             scan-type: fs
+             scan-ref: .
+             format: table
+             exit-code: '1' # Fail on critical/high vulnerabilities
 
-      - name: Log in to Docker Hub
-        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+     build:
+       needs: test
+       runs-on: ubuntu-latest
+       steps:
+         - name: Checkout
+           uses: actions/checkout@v4
 
-      - name: Build and Push Image
-        run: |
-          docker build -t prashant0597/myapp:latest .
-          docker push prashant0597/myapp:latest
+         - name: Log in to Docker Hub
+           run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
 
-  terraform:
-    needs: build
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: terraform
-    env:
-      ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-      ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
-      ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-      ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-      ARM_ACCESS_KEY: ${{ secrets.ARM_ACCESS_KEY }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+         - name: Build and Push Image
+           run: |
+             docker build -t prashant0597/myapp:latest .
+             docker push prashant0597/myapp:latest
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.x"
+     terraform:
+       needs: build
+       runs-on: ubuntu-latest
+       defaults:
+         run:
+           working-directory: terraform
+       env:
+         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+         AWS_REGION: ${{ secrets.AWS_REGION }}
+       steps:
+         - name: Checkout code
+           uses: actions/checkout@v4
 
-      - name: Terraform Init
-        run: terraform init
+         - name: Setup Terraform
+           uses: hashicorp/setup-terraform@v3
+           with:
+             terraform_version: "1.x"
 
-      - name: Terraform Validate
-        run: terraform validate
+         - name: Terraform Init
+           run: terraform init
 
-      - name: Terraform Plan
-        run: terraform plan -out=tfplan -lock=false
+         - name: Terraform Validate
+           run: terraform validate
 
-      - name: Terraform Apply
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: terraform apply -auto-approve tfplan
+         - name: Terraform Plan
+           run: terraform plan -out=tfplan -lock=false
 
-  deploy:
-    needs: terraform
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+         - name: Terraform Apply
+           if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+           run: terraform apply -auto-approve tfplan
 
-      - name: Set up Kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'latest'
+     deploy:
+       needs: terraform
+       runs-on: ubuntu-latest
+       steps:
+         - name: Checkout
+           uses: actions/checkout@v4
 
-      - name: Set up Helm
-        uses: azure/setup-helm@v3
-        with:
-          version: 'latest'
-          token: ${{ secrets.GITHUB_TOKEN }}
+         - name: Configure AWS Credentials
+           uses: aws-actions/configure-aws-credentials@v4
+           with:
+             aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+             aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+             aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.ARM_CLIENT_ID }}
-          client-secret: ${{ secrets.ARM_CLIENT_SECRET }}
-          tenant-id: ${{ secrets.ARM_TENANT_ID }}
-          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+         - name: Set up Kubectl
+           uses: azure/setup-kubectl@v3
+           with:
+             version: 'latest'
 
-      - name: Get AKS Credentials
-        run: az aks get-credentials --resource-group rg-aks-github --name aks-github --overwrite-existing
+         - name: Set up Helm
+           uses: azure/setup-helm@v3
+           with:
+             version: 'latest'
+             token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Helm Upgrade
-        run: helm upgrade --install myapp ./ --namespace default --create-namespace
+         - name: Get EKS Credentials
+           run: aws eks update-kubeconfig --name eks-github --region ${{ secrets.AWS_REGION }}
+
+         - name: Helm Upgrade
+           run: helm upgrade --install myapp ./myapp --namespace default --create-namespace --set image.repository=prashant0597/myapp --set image.tag=latest
+
+         - name: Get ALB URL
+           run: |
+             ALB_URL=$(kubectl get ingress -n default myapp-ingress -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+             echo "Application is accessible at: http://$ALB_URL"
+             echo "ALB_URL=$ALB_URL" >> $GITHUB_ENV
+           env:
+             KUBECONFIG: ~/.kube/config
+
+       outputs:
+         alb_url: ${{ env.ALB_URL }}
