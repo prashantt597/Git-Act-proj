@@ -31,7 +31,6 @@ jobs:
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
         with:
-          projectBaseDirwat: 3e7d2f8b-9c1a-4e7e-a5b3-8f2e4a9f2d73
           projectBaseDir: .
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
